@@ -174,8 +174,8 @@ function! H_UploadFolder()
 
 endfunction
 
-if !exists('g:hsftp_async_run_enable')
-  let g:hsftp_async_run_enable = 0
+if !exists('g:hsftp_asyncrun_enable')
+  let g:hsftp_asyncrun_enable = 0
 endif
 
 command! Hdownload call H_DownloadFile()
