@@ -53,16 +53,31 @@ function! H_GetConf()
   return conf
 endfunction
 
+function! H_MyExecuteCommand(cmd)
+  let mycmd = a:cmd
+ 
+  if exists("g:hsftp_async_run_enable") && g:hsftp_async_run_enable == 1
+    execute "AsyncRun " . mycmd
+  else 
+    silent execute '!' . mycmd
+  endif
+endfunction
+
 function! H_DownloadFile()
   let conf = H_GetConf()
 
   if has_key(conf, 'host')
     let action = printf('get %s %s', conf['remotepath'], conf['localpath'])
-    
-    if has_key(conf, 'user')
-        let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s@%s; expect \"*assword:\"; send %s\r; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['user'], conf['host'], conf['pass'], action)
+
+    if has_key(conf, 'method') && conf['method'] == 'scp'
+      " see https://github.com/tonny-sofijan/vim-hsftp/commit/0869776c6cb4f1e272402e9bf4524b7ad09610cb
+      let cmd = printf('scp -P %s %s@%s:%s %s', conf['port'], conf['user'], conf['host'], conf['remotepath'], conf['localpath'])
     else
-        let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['host'], action)
+      if has_key(conf, 'user')
+          let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s@%s; expect \"*assword:\"; send %s\r; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['user'], conf['host'], conf['pass'], action)
+      else
+          let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['host'], action)
+      endif
     endif
 
     if conf['confirm_download'] == 1
@@ -73,9 +88,19 @@ function! H_DownloadFile()
       endif
     endif
 
-    execute '!' . cmd
+    let response = H_MyExecuteCommand(cmd)
   else
     echo 'Could not find .hsftp config file'
+  endif
+endfunction
+
+function H_AutoUploadFile()
+  let conf = H_GetConf()
+
+  if has_key(conf, 'host')
+    if has_key(conf, 'upload_on_save') && conf['upload_on_save'] == 1
+      let upload = H_UploadFile()
+    endif
   endif
 endfunction
 
@@ -84,13 +109,18 @@ function! H_UploadFile()
 
   if has_key(conf, 'host')
     let action = printf('put %s %s', conf['localpath'], conf['remotepath'])
-    
-    if has_key(conf, 'user')
-        let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s@%s; expect \"*assword:\"; send %s\r; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['user'], conf['host'], conf['pass'], action)
+
+    if has_key(conf, 'method') && conf['method'] == 'scp'
+      " see: https://github.com/tonny-sofijan/vim-hsftp/commit/0869776c6cb4f1e272402e9bf4524b7ad09610cb
+      let cmd = printf('scp -P %s %s %s@%s:%s', conf['port'], conf['localpath'], conf['user'], conf['host'], conf['remotepath'])  
     else
-        let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['host'], action)
+      if has_key(conf, 'user')
+          let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s@%s; expect \"*assword:\"; send %s\r; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['user'], conf['host'], conf['pass'], action)
+      else
+          let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['host'], action)
+      endif
     endif
-    
+
     if conf['confirm_upload'] == 1
       let choice = confirm('Upload file?', "&Yes\n&No", 2)
       if choice != 1
@@ -99,7 +129,7 @@ function! H_UploadFile()
       endif
     endif
 
-    execute '!' . cmd
+    let response = H_MyExecuteCommand(cmd)
   else
     echo 'Could not find .hsftp config file'
   endif
@@ -108,37 +138,55 @@ endfunction
 function! H_UploadFolder()
   let conf = H_GetConf()
 
-  " execute "! echo " . file
-  " let conf['localpath'] = expand('%:p')
   let action = "send pwd\r;"
-  if has_key(conf, 'host')
-    for file in split(glob('%:p:h/*'), '\n')
-      let conf['localpath'] = file
-      let conf['remotepath'] = conf['remote'] . conf['localpath'][strlen(conf['local']):]
-  
-      if conf['confirm_upload'] == 1
-        let choice = confirm('Upload file?', "&Yes\n&No", 2)
-        if choice != 1
-          echo 'Canceled.'
-          return
-        endif
-      endif
-      let action = action . printf('expect \"sftp>\"; send \"put %s %s\r\";', conf['localpath'], conf['remotepath'])
-    endfor
-    " let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s@%s; expect \"*assword:\"; send %s\r; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['user'], conf['host'], conf['pass'], action)
 
-    if has_key(conf, 'user')
-        let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s@%s; expect \"*assword:\"; send %s\r; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['user'], conf['host'], conf['pass'], action)
+  if has_key(conf, 'host')
+    if has_key(conf, 'method') && conf['method'] == 'scp'
+      " see https://github.com/tonny-sofijan/vim-hsftp/commit/0869776c6cb4f1e272402e9bf4524b7ad09610cb
+      let conf['localpath'] = expand('%:p:h')
+      let conf['remotepath'] = conf['remote'] . conf['localpath'][strlen(conf['local']):]
+      let cmd = printf('scp -r -P %s %s %s@%s:%s', conf['port'], conf['localpath'], conf['user'], conf['host'], conf['remotepath'])
+
     else
-        let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['host'], action)
-    endif
+      for file in split(glob('%:p:h/*'), '\n')
+        let conf['localpath'] = file
+        let conf['remotepath'] = conf['remote'] . conf['localpath'][strlen(conf['local']):]
     
-    execute '!' . cmd
+        if conf['confirm_upload'] == 1
+          let choice = confirm('Upload file?', "&Yes\n&No", 2)
+          if choice != 1
+            echo 'Canceled.'
+            return
+          endif
+        endif
+        let action = action . printf('expect \"sftp>\"; send \"put %s %s\r\";', conf['localpath'], conf['remotepath'])
+      endfor
+
+      if has_key(conf, 'user')
+        let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s@%s; expect \"*assword:\"; send %s\r; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['user'], conf['host'], conf['pass'], action)
+      else
+        let cmd = printf('expect -c "set timeout 5; spawn sftp -P %s %s; expect \"sftp>\"; send \"%s\r\"; expect -re \"100%\"; send \"exit\r\";"', conf['port'], conf['host'], action)
+      endif
+    endif
+
+    if conf['confirm_updir'] == 1
+      let choice = confirm('Upload file?', "&Yes\n&No", 2)
+      if choice != 1
+        echo 'Canceled.'
+        return
+      endif
+    endif
+
+    let response = H_MyExecuteCommand(cmd)
   else
     echo 'Could not find .hsftp config file'
   endif
 
 endfunction
+
+if !exists('g:hsftp_async_run_enable')
+  let g:hsftp_async_run_enable = 0
+endif
 
 command! Hdownload call H_DownloadFile()
 command! Hupload call H_UploadFile()
@@ -147,3 +195,8 @@ command! Hupdir  call H_UploadFolder()
 nmap <leader>hsd :Hdownload<Esc>
 nmap <leader>hsu :Hupload<Esc>
 nmap <leader>hsf :Hupdir<Esc>
+
+augroup HsftpAutoSave
+  au! * <buffer>
+  autocmd BufWritePost <buffer> call H_AutoUploadFile() 
+augroup END
