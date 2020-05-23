@@ -56,7 +56,7 @@ endfunction
 function! H_MyExecuteCommand(cmd)
   let mycmd = a:cmd
  
-  if exists("g:hsftp_async_run_enable") && g:hsftp_async_run_enable == 1
+  if exists("g:hsftp_asyncrun_enable") && g:hsftp_asyncrun_enable == 1
     execute "AsyncRun " . mycmd
   else 
     silent execute '!' . mycmd

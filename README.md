@@ -14,6 +14,8 @@ Example `.hsftp` config file - the amount of spaces do not matter:
     pass   Sup3rS3cureP4s$W0rd
     port   22
     remote /var/www/
+    auto_upload 1
+    auto_download 0
     confirm_download 0
     confirm_upload 0
 
@@ -47,6 +49,12 @@ Upload all files in the current folder (current buffer) to the remote path.
     :Hupdir
     <leader>hsf
 
+AsyncRun Support
+------
+Add this to your `.vimrc` (you will need to install the [AsyncRun](https://github.com/skywind3000/asyncrun.vim) plugin first).
+```
+let g:hsftp_asyncrun_enable = 1
+```
 
 Thanks
 ------
@@ -60,5 +68,3 @@ TODO
 
 - attempt no password login (SSH key) [PR#8](https://github.com/hesselbom/vim-hsftp/pull/8)
 - download directories [PR#5](https://github.com/hesselbom/vim-hsftp/pull/5)
-- auto upload on save [PR#15](https://github.com/hesselbom/vim-hsftp/pull/15)
-- background ops (run in background) [I#2](https://github.com/hesselbom/vim-hsftp/issues/2)
