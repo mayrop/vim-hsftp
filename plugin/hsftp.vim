@@ -94,16 +94,6 @@ function! H_DownloadFile()
   endif
 endfunction
 
-function H_AutoUploadFile()
-  let conf = H_GetConf()
-
-  if has_key(conf, 'host')
-    if has_key(conf, 'upload_on_save') && conf['upload_on_save'] == 1
-      let upload = H_UploadFile()
-    endif
-  endif
-endfunction
-
 function! H_UploadFile()
   let conf = H_GetConf()
 
@@ -196,7 +186,11 @@ nmap <leader>hsd :Hdownload<Esc>
 nmap <leader>hsu :Hupload<Esc>
 nmap <leader>hsf :Hupdir<Esc>
 
-augroup HsftpAutoSave
-  au! * <buffer>
-  autocmd BufWritePost <buffer> call H_AutoUploadFile() 
-augroup END
+" see: https://github.com/hesselbom/vim-hsftp/blob/4e071727cd1f00862d1a0471fd2d9c10ab9ebff8/plugin/hsftp.vim
+let conf = H_GetConf()
+if has_key(conf, 'host') && conf['auto_upload'] == 1
+  autocmd BufWritePost * if expand('%:t') != '.hsftp' | :call H_UploadFile()
+endif
+if has_key(conf, 'host') && conf['auto_download'] == 1
+  autocmd BufReadPre * if expand('%:t') != '.hsftp' |:call H_DownloadFile()
+endif
