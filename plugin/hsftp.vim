@@ -174,6 +174,25 @@ function! H_UploadFolder()
 
 endfunction
 
+function! H_AutoSync(type)
+  let conf = H_GetConf()
+
+  if a:type == 'upload'
+    if has_key(conf, 'host') && conf['auto_upload'] == 1
+      let upload = H_UploadFile()
+    endif
+    return
+  endif
+
+  " assume download
+  if has_key(conf, 'host') && conf['auto_download'] == 1
+    let download = H_DownloadFile()
+  endif
+endfunction
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" Checking setting for AsyncRun
 if !exists('g:hsftp_asyncrun_enable')
   let g:hsftp_asyncrun_enable = 0
 endif
@@ -187,10 +206,12 @@ nmap <leader>hsu :Hupload<Esc>
 nmap <leader>hsf :Hupdir<Esc>
 
 " see: https://github.com/hesselbom/vim-hsftp/blob/4e071727cd1f00862d1a0471fd2d9c10ab9ebff8/plugin/hsftp.vim
-let conf = H_GetConf()
-if has_key(conf, 'host') && conf['auto_upload'] == 1
-  autocmd BufWritePost * if expand('%:t') != '.hsftp' | :call H_UploadFile()
-endif
-if has_key(conf, 'host') && conf['auto_download'] == 1
-  autocmd BufReadPre * if expand('%:t') != '.hsftp' |:call H_DownloadFile()
-endif
+augroup H_AutoUpload
+  autocmd!
+  autocmd BufWritePost * if expand('%:t') != '.hsftp' | :call H_AutoSync('upload')
+augroup END
+
+augroup H_AutoDownload
+  autocmd!
+  autocmd BufReadPre * if expand('%:t') != '.hsftp' | :call H_AutoSync('download')
+augroup END
