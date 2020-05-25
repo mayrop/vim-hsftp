@@ -13,6 +13,7 @@ Example `.hsftp` config file - the amount of spaces do not matter:
     user   username
     pass   Sup3rS3cureP4s$W0rd
     port   22
+    method  scp
     remote /var/www/
     auto_upload 1
     auto_download 0
